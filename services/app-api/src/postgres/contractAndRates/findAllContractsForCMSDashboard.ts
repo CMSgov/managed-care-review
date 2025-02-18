@@ -1,11 +1,12 @@
 import type { PrismaTransactionType } from '../prismaTypes'
-import { NotFoundError } from '../postgresErrors'
-import { parseContractWithHistory } from './parseContractWithHistory'
-import { includeFullContract } from './prismaFullContractRateHelpers'
 import type { ContractOrErrorArrayType } from './findAllContractsWithHistoryByState'
-async function findAllContractsWithHistoryBySubmitInfo(
-    client: PrismaTransactionType,
-    useZod: boolean = true
+import { NotFoundError } from '../postgresErrors'
+import { performance } from 'perf_hooks'
+import { parseContractForDashboard } from './parseContractWithHistory'
+import { includeContractForCMSDashboard } from './prismaFullContractRateHelpers'
+
+async function findAllContractsForCMSDashboard(
+    client: PrismaTransactionType
 ): Promise<ContractOrErrorArrayType | NotFoundError | Error> {
     try {
         performance.mark('beginPostgresQuery')
@@ -22,11 +23,14 @@ async function findAllContractsWithHistoryBySubmitInfo(
                     not: 'AS', // exclude test state as per ADR 019
                 },
             },
-            include: includeFullContract,
+            include: {
+                ...includeContractForCMSDashboard,
+            },
         })
+
         performance.mark('finishPostgresQuery')
         performance.measure(
-            'findAllContractsWithHistoryBySubmitInfo: beginPostgresQuery to finishPostgresQuery',
+            'findAllContractsForCMSDashboard: beginPostgresQuery to finishPostgresQuery',
             'beginPostgresQuery',
             'finishPostgresQuery'
         )
@@ -38,17 +42,15 @@ async function findAllContractsWithHistoryBySubmitInfo(
         }
 
         performance.mark('beginParseContract')
-        let parsedContracts: ContractOrErrorArrayType = []
-        for (const contract of contracts) {
-            const parsed = {
+        const parsedContracts: ContractOrErrorArrayType = contracts.map(
+            (contract) => ({
                 contractID: contract.id,
-                contract: parseContractWithHistory(contract, useZod),
-            }
-            parsedContracts = parsedContracts.concat(parsed)
-        }
+                contract: parseContractForDashboard(contract),
+            })
+        )
         performance.mark('finishParseContract')
         performance.measure(
-            'findAllContractsWithHistoryBySubmitInfo: beginParseContract to finishParseContract',
+            'findAllContractsForCMSDashboard: beginParseContract to finishParseContract',
             'beginParseContract',
             'finishParseContract'
         )
@@ -59,4 +61,4 @@ async function findAllContractsWithHistoryBySubmitInfo(
     }
 }
 
-export { findAllContractsWithHistoryBySubmitInfo }
+export { findAllContractsForCMSDashboard }
