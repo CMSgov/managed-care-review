@@ -1,16 +1,11 @@
 import React, { useEffect, useState } from 'react'
-import styles from './RateWithdraw.module.scss'
-import {
-    ActionButton,
-    Breadcrumbs,
-    GenericApiErrorBanner,
-    PoliteErrorMessage,
-} from '../../components'
-import { RoutesRecord } from '@mc-review/constants'
-import { useNavigate, useParams } from 'react-router-dom'
-import { useFetchRateQuery, useWithdrawRateMutation } from '../../gen/gqlClient'
+import styles from './UndoRateWithdraw.module.scss'
+import { ActionButton, Breadcrumbs, PoliteErrorMessage } from '../../components'
+import { useFetchRateQuery } from '../../gen/gqlClient'
 import { ErrorOrLoadingPage } from '../StateSubmission'
 import { handleAndReturnErrorState } from '../StateSubmission/ErrorOrLoadingPage'
+import { RoutesRecord } from '@mc-review/constants'
+import { useNavigate, useParams } from 'react-router-dom'
 import {
     ButtonGroup,
     Form,
@@ -18,41 +13,39 @@ import {
     Label,
     Textarea,
 } from '@trussworks/react-uswds'
-import * as Yup from 'yup'
 import { PageActionsContainer } from '../StateSubmission/PageActions'
-import { Formik, FormikErrors } from 'formik'
 import { usePage } from '../../contexts/PageContext'
 import { GenericErrorPage } from '../Errors/GenericErrorPage'
+import { Formik, FormikErrors } from 'formik'
+import * as Yup from 'yup'
 import { useTealium } from '../../hooks'
 import { recordJSException } from '@mc-review/otel'
 
-type RateWithdrawValues = {
-    rateWithdrawReason: string
+type UndoRateWithdrawValues = {
+    undoWithdrawReason: string
 }
 
-const RateWithdrawSchema = Yup.object().shape({
-    rateWithdrawReason: Yup.string().required(
-        'You must provide a reason for withdrawing this rate.'
+const UndoRateWithdrawSchema = Yup.object().shape({
+    undoWithdrawReason: Yup.string().required(
+        'You must provide a reason for this change.'
     ),
 })
 
 type FormError =
-    FormikErrors<RateWithdrawValues>[keyof FormikErrors<RateWithdrawValues>]
+    FormikErrors<UndoRateWithdrawValues>[keyof FormikErrors<UndoRateWithdrawValues>]
 
-export const RateWithdraw = () => {
+export const UndoRateWithdraw = () => {
     const { id } = useParams() as { id: string }
     const { updateHeading } = usePage()
-    const navigate = useNavigate()
     const { logFormSubmitEvent } = useTealium()
-    const [rateName, setRateName] = useState<string | undefined>(undefined)
+    const navigate = useNavigate()
     const [shouldValidate, setShouldValidate] = React.useState(false)
-    const [withdrawRate, { error: withdrawError, loading: withdrawLoading }] =
-        useWithdrawRateMutation()
+    const [rateName, setRateName] = useState<string | undefined>(undefined)
     const showFieldErrors = (error?: FormError): boolean | undefined =>
         shouldValidate && Boolean(error)
 
-    const formInitialValues: RateWithdrawValues = {
-        rateWithdrawReason: '',
+    const formInitialValues: UndoRateWithdrawValues = {
+        undoWithdrawReason: '',
     }
 
     const { data, loading, error } = useFetchRateQuery({
@@ -84,32 +77,26 @@ export const RateWithdraw = () => {
         setRateName(rateCertificationName)
     }
 
-    const withdrawRateAction = async (values: RateWithdrawValues) => {
+    const undoWithdrawRateAction = async (values: UndoRateWithdrawValues) => {
         logFormSubmitEvent({
-            heading: 'Withdraw rate',
-            form_name: 'Withdraw rate',
+            heading: 'Undo withdraw',
+            form_name: 'Undo withdraw',
             event_name: 'form_field_submit',
             link_type: 'link_other',
         })
         try {
-            await withdrawRate({
-                variables: {
-                    input: {
-                        rateID: rate.id,
-                        updatedReason: values.rateWithdrawReason,
-                    },
-                },
-            })
+            console.info('Placeholder: Call undoRateWithdraw mutation')
+            console.info(values)
             navigate(`/rates/${id}`)
         } catch (err) {
             recordJSException(
-                `WithdrawRate: Apollo error reported. Error message: ${err}`
+                `UndoWithdrawRate: Apollo error reported. Error message: ${err}`
             )
         }
     }
 
     return (
-        <div className={styles.rateWithdrawContainer}>
+        <div className={styles.undoRateWithdrawContainer}>
             <Breadcrumbs
                 className="usa-breadcrumb--wrap"
                 items={[
@@ -119,33 +106,32 @@ export const RateWithdraw = () => {
                     },
                     { link: `/rates/${id}`, text: rateCertificationName || '' },
                     {
-                        text: 'Withdraw rate',
-                        link: RoutesRecord.RATE_WITHDRAW,
+                        text: 'Undo withdraw',
+                        link: RoutesRecord.UNDO_RATE_WITHDRAW,
                     },
                 ]}
             />
             <Formik
                 initialValues={formInitialValues}
-                onSubmit={(values) => withdrawRateAction(values)}
-                validationSchema={RateWithdrawSchema}
+                onSubmit={(values) => undoWithdrawRateAction(values)}
+                validationSchema={UndoRateWithdrawSchema}
             >
                 {({ handleSubmit, handleChange, errors, values }) => (
                     <Form
-                        id="RateWithdrawForm"
+                        id="UndoRateWithdrawForm"
                         className={styles.formContainer}
-                        aria-label="Withdraw rate review"
+                        aria-label="Undo rate withdraw"
                         aria-describedby="form-guidance"
                         onSubmit={(e) => {
                             setShouldValidate(true)
                             return handleSubmit(e)
                         }}
                     >
-                        {withdrawError && <GenericApiErrorBanner />}
                         <fieldset className="usa-fieldset">
-                            <h2>Withdraw a rate</h2>
+                            <h2>Undo withdraw</h2>
                             <FormGroup
                                 error={showFieldErrors(
-                                    errors.rateWithdrawReason
+                                    errors.undoWithdrawReason
                                 )}
                                 className="margin-top-0"
                             >
@@ -153,31 +139,32 @@ export const RateWithdraw = () => {
                                     htmlFor="rateWithdrawReason"
                                     className="margin-bottom-0 text-bold"
                                 >
-                                    Reason for withdrawing
+                                    Reason for change
                                 </Label>
                                 <p className="margin-bottom-0 margin-top-05 usa-hint">
                                     Required
                                 </p>
                                 <p className="margin-bottom-0 margin-top-05 usa-hint">
-                                    Provide a reason for withdrawing the rate
-                                    review.
+                                    Provide a reason for this change. Clicking
+                                    'Undo withdraw' will move the rate back to
+                                    the status of Submitted.
                                 </p>
-                                {showFieldErrors(errors.rateWithdrawReason) && (
+                                {showFieldErrors(errors.undoWithdrawReason) && (
                                     <PoliteErrorMessage formFieldLabel="Reason for withdrawing">
-                                        {errors.rateWithdrawReason}
+                                        {errors.undoWithdrawReason}
                                     </PoliteErrorMessage>
                                 )}
                                 <Textarea
-                                    name="rateWithdrawReason"
-                                    id="rateWithdrawReason"
-                                    data-testid="rateWithdrawReason"
-                                    aria-labelledby="rateWithdrawReason"
-                                    aria-required
+                                    name="undoWithdrawReason"
+                                    id="undoWithdrawReason"
+                                    data-testid="undoWithdrawReason"
+                                    aria-labelledby="undoWithdrawReason"
                                     error={showFieldErrors(
-                                        errors.rateWithdrawReason
+                                        errors.undoWithdrawReason
                                     )}
                                     onChange={handleChange}
-                                    defaultValue={values.rateWithdrawReason}
+                                    defaultValue={values.undoWithdrawReason}
+                                    aria-required
                                 ></Textarea>
                             </FormGroup>
                         </fieldset>
@@ -197,15 +184,14 @@ export const RateWithdraw = () => {
                                     type="submit"
                                     variant="default"
                                     disabled={showFieldErrors(
-                                        errors.rateWithdrawReason
+                                        errors.undoWithdrawReason
                                     )}
                                     data-testid="page-actions-right-primary"
                                     parent_component_type="page body"
                                     link_url={`/rates/${id}`}
                                     animationTimeout={1000}
-                                    loading={withdrawLoading}
                                 >
-                                    Withdraw rate
+                                    Undo Withdraw
                                 </ActionButton>
                             </ButtonGroup>
                         </PageActionsContainer>
