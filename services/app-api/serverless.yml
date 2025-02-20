@@ -1,6 +1,6 @@
 service: app-api
 
-frameworkVersion: '^3.19.0'
+frameworkVersion: '4.2.3'
 
 package:
   individually: true
@@ -16,8 +16,10 @@ plugins:
   - serverless-iam-helper
   - serverless-offline
 
+build:
+  esbuild: false
+
 custom:
-  region: ${aws:region}
   applicationEndpoint: ${env:APPLICATION_ENDPOINT, cf:ui-${sls:stage}.CloudFrontEndpointUrl}
   appApiGatewayId: ${env:CF_CONFIG_IGNORED_LOCALLY, cf:infra-api-${sls:stage}.ApiGatewayRestApiId}
   appApiGatewayRootResourceId: ${env:CF_CONFIG_IGNORED_LOCALLY, cf:infra-api-${sls:stage}.AppApiGatewayRootResourceId}
@@ -120,7 +122,7 @@ provider:
 
   environment:
     stage: ${sls:stage}
-    REGION: ${self:custom.region}
+    REGION: ${self:provider.region}
     DATABASE_URL: ${self:custom.dbURL}
     VITE_APP_AUTH_MODE: ${self:custom.reactAppAuthMode}
     API_APP_OTEL_COLLECTOR_URL: ${self:custom.apiAppOtelCollectorUrl}
@@ -243,7 +245,10 @@ resources:
   Resources:
     ApiGwWebAclAssociation:
       Type: AWS::WAFv2::WebACLAssociation
-      DependsOn: 'ApiGatewayDeployment${sls:instanceId}'
+      DependsOn:
+        - GraphqlLambdaFunction
+        - HealthLambdaFunction
+        - ZipKeysLambdaFunction
       Properties:
         ResourceArn: arn:aws:apigateway:${self:provider.region}::/restapis/${self:custom.appApiGatewayId}/stages/${sls:stage}
         WebACLArn: ${self:custom.appApiWafAclArn}
